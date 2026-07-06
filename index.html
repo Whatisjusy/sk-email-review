@@ -112,13 +112,13 @@
 
 <div class="rv-top">
   <h1>📧 Customer emails — review &amp; approve</h1>
-  <p>Every automated email a customer gets, from both Shopify and Recharge. Use the dropdown on an email to see its variations. Tap <strong>Looks good</strong> or <strong>Needs a change</strong> on each one, add a note where it helps, then hit <strong>Submit</strong> at the bottom. It goes straight to Jusy.</p>
+  <p>Every automated email a customer gets, from both Shopify and Recharge. Use the dropdown on an email to see its variations. Tap <strong>Looks good</strong> or <strong>Needs a change</strong> on each one, add a note where it helps, then hit <strong>Submit</strong> at the bottom. It goes straight to Jusy. Your progress saves automatically, so you can close this and come back to it.</p>
   <div class="who"><span class="lbl">Who's reviewing?</span><button class="who-btn" data-who="Kieran">Kieran</button><button class="who-btn" data-who="Hayley">Hayley</button></div>
 </div>
 
 <div id="list"></div>
 
-<div class="rv-bar"><span id="prog">0 reviewed</span><button id="submitBtn" disabled>Submit review</button></div>
+<div class="rv-bar"><span id="prog">0 reviewed</span><div style="display:flex;gap:16px;align-items:center"><button type="button" id="resetBtn" style="background:transparent;border:0;color:#F6F4EF;opacity:.75;font-family:inherit;font-size:13px;text-decoration:underline;cursor:pointer">Start over</button><button id="submitBtn" disabled>Submit review</button></div></div>
 <div class="rv-done" id="done"><div><div class="tick">✅</div><h2>Sent!</h2><p id="doneMsg"></p></div></div>
 
 <script>
@@ -421,6 +421,8 @@ function renderEmail(v){
 var WEBHOOK = 'https://n8n.srv1085988.hstgr.cloud/webhook/sk-email-review';
 var list = document.getElementById('list');
 var decisions = {};
+var cardApi = {};
+var STORE = 'sk-email-review-1';
 var TOTAL = Object.keys(EMAILS).length;
 function platformOf(cfg){ return cfg.tag==='Recharge' ? 'Recharge' : 'Shopify'; }
 
@@ -442,12 +444,13 @@ function makeReviewCard(id, cfg){
     decisions[id]={decision:d, note:note.value, title:cfg.title, platform:platformOf(cfg), variant:cfg.variants[curKey].label, sub:cfg.sub};
     card.classList.toggle('is-ok', d==='approved'); card.classList.toggle('is-ch', d==='change');
     okB.classList.toggle('on', d==='approved'); chB.classList.toggle('on', d==='change');
-    note.classList.toggle('show', d==='change'); updateProgress();
+    note.classList.toggle('show', d==='change'); updateProgress(); save();
   }
   okB.onclick=function(){ setDec('approved'); };
   chB.onclick=function(){ setDec('change'); note.focus(); };
-  note.addEventListener('input',function(){ if(decisions[id]) decisions[id].note=note.value; });
+  note.addEventListener('input',function(){ if(decisions[id]){ decisions[id].note=note.value; save(); } });
   card.appendChild(head); card.appendChild(body); card.appendChild(ctr);
+  cardApi[id] = { apply:function(dec,noteVal){ if(noteVal!=null) note.value=noteVal; setDec(dec); } };
   return card;
 }
 function groupHead(t){ var d=document.createElement('div'); d.className='group-head'; d.textContent=t; return d; }
@@ -460,7 +463,7 @@ Object.keys(EMAILS).forEach(function(k){ if(platformOf(EMAILS[k])==='Recharge') 
 /* ================= reviewer + submit ================= */
 var reviewer=null;
 Array.prototype.forEach.call(document.querySelectorAll('.who-btn'),function(b){
-  b.onclick=function(){ reviewer=b.getAttribute('data-who'); Array.prototype.forEach.call(document.querySelectorAll('.who-btn'),function(x){x.classList.remove('on');}); b.classList.add('on'); updateProgress(); };
+  b.onclick=function(){ reviewer=b.getAttribute('data-who'); Array.prototype.forEach.call(document.querySelectorAll('.who-btn'),function(x){x.classList.remove('on');}); b.classList.add('on'); updateProgress(); save(); };
 });
 function updateProgress(){
   var n=Object.keys(decisions).length;
@@ -468,6 +471,20 @@ function updateProgress(){
   document.getElementById('submitBtn').disabled = !(reviewer && n>0);
 }
 updateProgress();
+
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify({ reviewer:reviewer, decisions:decisions })); }catch(e){} }
+function restore(){
+  var raw=null; try{ raw=localStorage.getItem(STORE); }catch(e){}
+  if(!raw) return;
+  var data; try{ data=JSON.parse(raw); }catch(e){ return; }
+  if(data.reviewer){ var wb=document.querySelector('.who-btn[data-who="'+data.reviewer+'"]'); if(wb){ reviewer=data.reviewer; wb.classList.add('on'); } }
+  var d=data.decisions||{};
+  Object.keys(d).forEach(function(id){ if(cardApi[id]) cardApi[id].apply(d[id].decision, d[id].note||''); });
+  updateProgress();
+}
+restore();
+
+document.getElementById('resetBtn').onclick=function(){ if(confirm('Clear your review and start fresh?')){ try{ localStorage.removeItem(STORE); }catch(e){} location.reload(); } };
 
 document.getElementById('submitBtn').onclick=function(){
   if(!reviewer){ alert('First tap who\'s reviewing (top of the page).'); return; }
@@ -482,6 +499,7 @@ document.getElementById('submitBtn').onclick=function(){
     .catch(function(){ btn.disabled=false; btn.textContent='Submit review'; alert('Could not send — check your connection and try again.'); });
 };
 function showDone(p){
+  try{ localStorage.removeItem(STORE); }catch(e){}
   document.getElementById('doneMsg').innerHTML='Thanks, '+p.reviewer+' — your review\'s been sent to Jusy.<br><strong>'+p.approved+'</strong> approved · <strong>'+p.changes+'</strong> change'+(p.changes===1?'':'s')+' requested.';
   document.getElementById('done').classList.add('show');
   window.scrollTo(0,0);
