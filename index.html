@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Shredded Kitchen — Customer Emails: Review & Approve</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;overflow:hidden;background:#dcd8cf;font-family:'Fredoka',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#2B1F12;}
+  /* ---- canvas ---- */
+  #viewport{position:fixed;inset:0;overflow:hidden;cursor:grab;background:
+    radial-gradient(circle at 1px 1px, rgba(43,31,18,.10) 1px, transparent 0) 0 0/26px 26px,#e4e0d7;}
+  #viewport.grabbing{cursor:grabbing;}
+  #world{position:absolute;top:0;left:0;width:8000px;height:8200px;transform-origin:0 0;}
+  .zone{position:absolute;font-size:30px;font-weight:700;color:rgba(43,31,18,.30);letter-spacing:.02em;}
+  /* ---- toolbar ---- */
+  .bar{position:fixed;z-index:50;top:14px;left:14px;background:#2B1F12;color:#F6F4EF;border-radius:14px;padding:12px 16px;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:330px;}
+  .bar h1{margin:0 0 4px;font-size:15px;font-weight:700;}
+  .bar p{margin:0;font-size:12px;line-height:1.5;opacity:.82;}
+  .zoom{position:fixed;z-index:50;top:14px;right:14px;display:flex;gap:6px;}
+  .zoom button{font-family:inherit;font-size:16px;font-weight:700;width:38px;height:38px;border:0;border-radius:10px;background:#2B1F12;color:#F6F4EF;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2);}
+  .zoom button.wide{width:auto;padding:0 14px;font-size:13px;}
+  .zoom button:hover{background:#3c2c1a;}
+  /* ---- station ---- */
+  .station{position:absolute;width:600px;}
+  .st-head{background:#fff;border:1px solid rgba(43,31,18,.16);border-radius:14px 14px 0 0;border-bottom:0;padding:13px 16px;cursor:grab;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .st-head:active{cursor:grabbing;}
+  .st-head .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;background:#8AA22E;border-radius:20px;padding:4px 10px;}
+  .st-head .tag.todo{background:#c9a14a;}
+  .st-head .tag.rc{background:#5a6b9e;}
+  .st-head .nm{font-size:16px;font-weight:700;}
+  .st-head .sb{font-size:12px;color:#7a6a55;flex-basis:100%;}
+  .st-head select{margin-left:auto;font-family:inherit;font-size:13px;font-weight:600;color:#2B1F12;background:#F6F4EF;border:1px solid rgba(43,31,18,.2);border-radius:9px;padding:7px 10px;cursor:pointer;}
+  .st-body{border:1px solid rgba(43,31,18,.16);border-top:0;border-radius:0 0 16px 16px;overflow:hidden;background:#F6F4EF;}
+  .stub{padding:30px 22px;font-size:13.5px;color:#5b4a35;line-height:1.55;background:#fff;}
+  /* ---- email card ---- */
+  .em{background:#F6F4EF;padding:18px 0 8px;}
+  .em-logo{text-align:center;padding:6px 0 16px;}
+  .em-logo img{width:160px;height:auto;}
+  .em-card{width:540px;max-width:92%;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 2px 10px rgba(43,31,18,.06);}
+  .em-band{padding:28px 32px 24px;}
+  .em-ey{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.72;}
+  .em-h1{font-size:27px;line-height:1.14;font-weight:700;padding-top:7px;}
+  .em-lead{font-size:15px;line-height:1.5;padding-top:9px;opacity:.9;}
+  .em-strip{display:flex;flex-wrap:wrap;background:#EFEBE0;}
+  .em-strip span{flex:1;min-width:33%;text-align:center;font-size:12px;font-weight:600;color:#5b4a35;padding:11px 4px;}
+  .em-sec{padding:20px 32px 0;}
+  .em-ttl{font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8AA22E;}
+  .em-box{background:#F6F4EF;border-radius:13px;padding:15px 17px;margin-top:11px;font-size:14.5px;line-height:1.55;color:#2B1F12;}
+  .em-box.green{background:#F4F7E9;border:1px solid #DCE6BD;}
+  .em-box.big{font-size:23px;font-weight:700;}
+  .em-row{display:flex;align-items:center;gap:11px;padding:6px 0;}
+  .em-th{flex:none;width:46px;height:46px;border-radius:10px;background:#EFEBE0;}
+  .em-row .nm{font-size:14.5px;font-weight:600;flex:1;}
+  .em-row .pr{font-size:14.5px;font-weight:600;}
+  .em-step{display:flex;align-items:flex-start;gap:11px;padding:5px 0;}
+  .em-step .n{flex:none;width:27px;height:27px;border-radius:50%;background:#A8C13C;color:#2B1F12;font-weight:700;font-size:14px;text-align:center;line-height:27px;}
+  .em-step .t{font-size:14.5px;line-height:1.42;}
+  .em-tot{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0;}
+  .em-tot.big{font-size:17px;font-weight:700;padding-top:9px;}
+  .em-tot .l{color:#5b4a35;} .em-tot.big .l{color:#2B1F12;}
+  .em-div{height:1px;background:rgba(43,31,18,.12);margin:14px 32px 0;}
+  .em-cta{text-align:center;padding:22px 32px 4px;}
+  .btn{display:inline-block;background:#A8C13C;color:#2B1F12;font-size:15px;font-weight:700;text-decoration:none;padding:13px 34px;border-radius:30px;}
+  .btn2{display:inline-block;background:#fff;color:#8AA22E;border:2px solid #8AA22E;font-size:14px;font-weight:700;text-decoration:none;padding:10px 26px;border-radius:30px;margin-top:10px;}
+  .em-note{text-align:center;font-size:12.5px;color:#8a7864;padding:10px 32px 2px;}
+  .em-foot{text-align:center;padding:18px 28px 22px;}
+  .em-foot .lk{font-size:12.5px;padding-bottom:10px;}
+  .em-foot a{color:#8AA22E;text-decoration:none;font-weight:600;}
+  .em-foot .nm{font-size:13px;font-weight:600;}
+  .em-foot .ad{font-size:12px;color:#8a7864;line-height:1.6;padding-top:4px;}
+  .em-qa{text-align:center;padding:20px 32px 6px;}
+  .em-qa .qh{font-size:16px;font-weight:700;}
+  .em-qa .qp{font-size:14px;color:#5b4a35;line-height:1.55;padding-top:6px;}
+  /* ---- review layout (overrides the canvas) ---- */
+  html,body{overflow:auto;height:auto;min-height:100%;background:#e4e0d7;}
+  .rv-top{position:sticky;top:0;z-index:40;background:#2B1F12;color:#F6F4EF;padding:16px 18px;box-shadow:0 4px 16px rgba(0,0,0,.18);}
+  .rv-top h1{margin:0 0 5px;font-size:18px;font-weight:700;}
+  .rv-top p{margin:0;font-size:13px;line-height:1.5;opacity:.85;max-width:620px;}
+  .who{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .who .lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.72;}
+  .who-btn{font-family:inherit;font-size:14px;font-weight:700;border:2px solid #A8C13C;background:transparent;color:#F6F4EF;border-radius:22px;padding:7px 20px;cursor:pointer;}
+  .who-btn.on{background:#A8C13C;color:#2B1F12;}
+  #list{max-width:640px;margin:0 auto;padding:20px 14px 130px;}
+  .group-head{font-size:14px;font-weight:700;color:#6c5b45;letter-spacing:.04em;margin:28px 4px 14px;text-transform:uppercase;}
+  .group-head:first-child{margin-top:4px;}
+  .rcard{margin-bottom:26px;border-radius:16px;box-shadow:0 3px 14px rgba(43,31,18,.08);background:#fff;overflow:hidden;border:2px solid transparent;transition:border-color .15s;}
+  .rcard.is-ok{border-color:#A8C13C;}
+  .rcard.is-ch{border-color:#d8a63e;}
+  .rcard .st-head{cursor:default;border-radius:0;border:0;border-bottom:1px solid rgba(43,31,18,.1);}
+  .rcard .st-body{border:0;border-radius:0;}
+  .rc-ctr{padding:14px 16px;background:#F6F4EF;border-top:1px solid rgba(43,31,18,.1);}
+  .rc-btns{display:flex;gap:10px;}
+  .rc-btns button{flex:1;font-family:inherit;font-size:14px;font-weight:700;border:2px solid rgba(43,31,18,.18);background:#fff;color:#2B1F12;border-radius:11px;padding:11px 8px;cursor:pointer;}
+  .rc-ok.on{background:#A8C13C;border-color:#A8C13C;}
+  .rc-ch.on{background:#e8b84d;border-color:#e8b84d;}
+  .rc-note{display:none;width:100%;margin-top:11px;font-family:inherit;font-size:14px;border:1px solid rgba(43,31,18,.2);border-radius:10px;padding:10px 12px;resize:vertical;min-height:62px;background:#fff;color:#2B1F12;}
+  .rc-note.show{display:block;}
+  .rv-bar{position:fixed;left:0;right:0;bottom:0;z-index:45;background:#2B1F12;color:#F6F4EF;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 18px;box-shadow:0 -4px 16px rgba(0,0,0,.22);}
+  .rv-bar #prog{font-size:14px;font-weight:600;}
+  #submitBtn{font-family:inherit;font-size:15px;font-weight:700;border:0;border-radius:24px;background:#A8C13C;color:#2B1F12;padding:12px 30px;cursor:pointer;}
+  #submitBtn:disabled{opacity:.4;cursor:not-allowed;}
+  .rv-done{position:fixed;inset:0;z-index:60;background:rgba(43,31,18,.94);color:#F6F4EF;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;}
+  .rv-done.show{display:flex;}
+  .rv-done .tick{font-size:52px;}
+  .rv-done h2{font-size:24px;margin:8px 0;}
+  .rv-done p{font-size:16px;line-height:1.6;opacity:.92;}
+</style>
+</head>
+<body>
+
+<div class="rv-top">
+  <h1>📧 Customer emails — review &amp; approve</h1>
+  <p>Every automated email a customer gets, from both Shopify and Recharge. Use the dropdown on an email to see its variations. Tap <strong>Looks good</strong> or <strong>Needs a change</strong> on each one, add a note where it helps, then hit <strong>Submit</strong> at the bottom. It goes straight to Jusy.</p>
+  <div class="who"><span class="lbl">Who's reviewing?</span><button class="who-btn" data-who="Kieran">Kieran</button><button class="who-btn" data-who="Hayley">Hayley</button></div>
+</div>
+
+<div id="list"></div>
+
+<div class="rv-bar"><span id="prog">0 reviewed</span><button id="submitBtn" disabled>Submit review</button></div>
+<div class="rv-done" id="done"><div><div class="tick">✅</div><h2>Sent!</h2><p id="doneMsg"></p></div></div>
+
+<script>
+/* ================= shared bits ================= */
+var LOGO = 'https://cdn.shopify.com/s/files/1/0692/3472/1061/files/The_Shredded_Kitchen_-_Logo.png?v=1671074442';
+var ADDR = 'Jess Morgan<br>14 Puketapu Road<br>Taradale, Napier 4112';
+var FOOT = '<div class="em-foot"><div class="lk"><a href="#">How it works</a> · <a href="#">Delivery</a> · <a href="#">FAQ</a> · <a href="#">Contact</a></div><div class="nm">The Shredded Kitchen</div><div class="ad">11 Meeanee Road, Taradale, Napier 4112 · hello@theshreddedkitchen.nz</div></div>';
+
+function steps(title, items){ return {t:'steps', title:title, items:items}; }
+function box(title, html, green){ return {t:'box', title:title, html:html, green:green}; }
+function items(title, rows){ return {t:'items', title:title, rows:rows}; }
+function kv(title, html){ return {t:'kv', title:title, html:html}; }
+
+var SAMPLE_ITEMS = [{nm:'Weekly Box, Performance', meta:'Delivered weekly', q:'$119.00'},{nm:'High-Protein Brekky × 3', meta:'', q:'$27.00'}];
+
+/* ---- order-confirmation factory (keeps all the common chrome) ---- */
+function oc(o){
+  var secs = [];
+  secs.push(o.body);
+  if(o.cookbookNote) secs.push(box(null,'📖 <strong>Cookbook in your order?</strong> That one\'s a download, already in your inbox.',true));
+  secs.push({t:'summary'});
+  if(o.physical) secs.push(kv('Where it\'s going', ADDR + '<br><span style="color:#8a7864">No gluten, no shellfish · leave at side gate</span>'));
+  if(o.sub) secs.push({t:'sub'});
+  var ctas=[{label:'View your order',kind:'primary'}];
+  if(o.sub) ctas.push({label:'Manage my subscription',kind:'secondary'});
+  secs.push({t:'qa'});
+  return {band:{tone:o.tone||'green',ey:o.ey,h1:o.h1,lead:o.lead}, strip:o.strip, sections:secs, ctas:ctas};
+}
+var STEP_MEAL = steps('What happens next',[['We cook fresh.','Made to order in our Taradale kitchen.'],['We deliver.','Chilled to your door, with a heads-up when it\'s on the way.'],['Heat & eat.','3 minutes in the microwave and you\'re done.']]);
+var STEP_FOOD = steps('What happens next',[['We make it fresh.','Baked and packed in our Taradale kitchen.'],['We deliver.','To your door, with a heads-up when it\'s on the way.'],['Ready when you are.','No cooking needed, just grab one and enjoy.']]);
+
+/* ================= ALL EMAILS ================= */
+var EMAILS = {
+  conf: { x:40, y:40, tag:'Built', title:'Order confirmation', sub:'Shopify · fires on every order',
+    order:['mealSub','mealOne','food','apparel','cookbook','gift','service','mixMeal','mixNoMeal','fallback'],
+    variants:{
+      mealSub:{label:'Meals · subscription', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'We\'re getting your order ready for you. Order by Tuesday midnight and you can expect your delivery this Friday.',strip:['Made fresh in Taradale','Free local delivery','Cancel anytime'],body:STEP_MEAL,physical:true,sub:true})},
+      mealOne:{label:'Meals · one-off', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'We\'re getting your order ready for you. Order by Tuesday midnight and you can expect your delivery this Friday.',strip:['Made fresh in Taradale','Free local delivery','Heated in 3 min'],body:STEP_MEAL,physical:true,sub:false})},
+      food:{label:'Snacks & breakfast', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'We\'re getting your order ready for you. Order by Tuesday midnight and you can expect your delivery this Friday.',strip:['Made fresh in Taradale','Free local delivery','Grab & go'],body:STEP_FOOD,physical:true,sub:false})},
+      apparel:{label:'Apparel', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'We\'re packing your order with care and we\'ll send tracking as soon as it\'s on the way.',strip:['Built for the grind','Tracked shipping','Easy returns'],body:steps('What happens next',[['We pack it.','Checked and folded with care.'],['We ship it.','Tracked, straight to your door.'],['Tracking on the way.','We\'ll email it the moment it\'s sent.']]),physical:true,sub:false})},
+      cookbook:{label:'Cookbook (digital)', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'Your download is ready and waiting in your inbox, yours to keep forever.',strip:['Instant download','Yours forever','Cook anytime'],body:box('Your cookbook','<strong style="font-size:15px">It\'s a download, ready now 📖</strong><br>Check your inbox for the link, and grab it anytime from your account. Nothing to ship.'),physical:false,sub:false})},
+      gift:{label:'Gift card', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'Your gift card is on its way by email, ready to spend whenever.',strip:['Delivered by email','Spend it anytime','On any order'],body:box('Your gift card','<strong style="font-size:15px">On its way by email 🎁</strong><br>It arrives in a separate email, ready to spend. Keep an eye on the inbox (and spam, just in case).'),physical:false,sub:false})},
+      service:{label:'Service / coaching', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'Thanks for booking with us. We\'ll be in touch shortly to get you started.',strip:['Personal 1-on-1','Tailored to you','Real coach, real plan'],body:steps('What happens next',[['We\'ve got your booking.','Thanks for investing in your goals.'],['We\'ll be in touch.','Watch for an email to set up your first session.']]),physical:false,sub:false})},
+      mixMeal:{label:'Mixed · with a meal', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'We\'re getting your order ready for you. Order by Tuesday midnight and you can expect your delivery this Friday.',strip:['Made fresh in Taradale','Free local delivery','Cancel anytime'],body:STEP_MEAL,cookbookNote:true,physical:true,sub:true})},
+      mixNoMeal:{label:'Mixed · no meal', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'We\'re getting your order ready for you. Order by Tuesday midnight and you can expect your delivery this Friday.',strip:['Made fresh in Taradale','Free local delivery','Grab & go'],body:STEP_FOOD,cookbookNote:true,physical:true,sub:false})},
+      fallback:{label:'Anything else (fallback)', v:oc({ey:'● Order confirmed',h1:'Thanks, Jess!',lead:'We\'ve got your order and we\'re getting it sorted. We\'ll be in touch as soon as there\'s an update.',strip:['Made in Taradale','We\'ve got it','We\'ll keep you posted'],body:steps('What happens next',[['We\'ve got your order.','We\'re getting it sorted right now.'],['We\'ll be in touch.','You\'ll get an email as soon as there\'s an update.']]),physical:true,sub:false})}
+    }
+  },
+
+  onway:{ x:700, y:40, tag:'Built', title:'On its way', sub:'Shopify · fires when you mark it shipped',
+    order:['local','courier'],
+    variants:{
+      local:{label:'Local delivery (no tracking)', v:{band:{tone:'green',ey:'● On its way',h1:'Your box is on its way, Jess! 🚚',lead:'Good news, your order is packed and heading your way. Keep an eye out this Friday.'},
+        sections:[items('In this delivery',SAMPLE_ITEMS.map(function(i){return {nm:i.nm,meta:'',q:''}})),kv('Delivering to',ADDR),box(null,'🧊 <strong>When it lands:</strong> pop the meals in the fridge. They heat in 3 minutes, snacks are grab-and-go.',true)],
+        ctas:[{label:'View your order',kind:'primary'}], note:'Questions about your delivery? Just reply to this email.'}},
+      courier:{label:'Courier (with tracking)', v:{band:{tone:'green',ey:'● On its way',h1:'Your order has shipped, Jess! 🚚',lead:'It\'s on the truck and tracking is live. Follow it right to your door.'},
+        sections:[box(null,'<strong>Tracking number</strong><br>NZ123456789 · Courier Post',false),items('In this shipment',SAMPLE_ITEMS.map(function(i){return {nm:i.nm,meta:'',q:''}})),kv('Shipping to',ADDR)],
+        ctas:[{label:'Track your delivery',kind:'primary'}], note:'Questions about your delivery? Just reply to this email.'}}
+    }
+  },
+
+  pickup:{ x:1360, y:40, tag:'Built', title:'Ready to collect', sub:'Shopify · local pickup ready',
+    order:['ready'],
+    variants:{ ready:{label:'Ready for pickup', v:{band:{tone:'green',ey:'● Ready for pickup',h1:'It\'s ready, Jess! 🎉',lead:'Your order is packed and waiting. Come grab it whenever suits you.'},
+      sections:[kv('Pick up from','<strong>The Shredded Kitchen</strong><br>11 Meeanee Road, Taradale, Napier 4112<br><span style="color:#8a7864">Open Mon–Fri, 9am–5pm · mention order #1042</span>'),items('Your order',SAMPLE_ITEMS.map(function(i){return {nm:i.nm,meta:'',q:''}}))],
+      ctas:[{label:'Get directions',kind:'primary'}], note:'Can\'t make it in soon? Reply and we\'ll sort something out.'}} }
+  },
+
+  cancel:{ x:40, y:1180, tag:'Built', title:'Order cancelled', sub:'Shopify · calm, not alarming',
+    order:['std'],
+    variants:{ std:{label:'Cancelled', v:{band:{tone:'neutral',ey:'● Order cancelled',h1:'Your order\'s been cancelled',lead:'Hi Jess, we\'ve cancelled order #1042. If this wasn\'t meant to happen, or you\'ve got any questions, just reply, we\'re happy to help.'},
+      sections:[box('What this means','Any payment you made will be refunded to your original method within <strong>3–5 business days</strong>. You don\'t need to do anything.'),items('What was cancelled',[{nm:'Weekly Box, Performance',meta:'',q:'$119.00'}])],
+      ctas:[{label:'Shop again',kind:'primary'}], note:'Changed your mind? Reply and we\'ll get you sorted.'}} }
+  },
+
+  refund:{ x:700, y:1180, tag:'Built', title:'Refund', sub:'Shopify · calm, reassuring',
+    order:['full','partial'],
+    variants:{
+      full:{label:'Full refund', v:{band:{tone:'neutral',ey:'● Refund processed',h1:'You\'ve been refunded',lead:'Hi Jess, that\'s all sorted. We\'ve sent your refund back to your original payment method.'},
+        sections:[{t:'amount',title:'Refund amount',html:'$119.00 <span style="font-size:13px;font-weight:500;color:#8a7864">NZD</span>'},box(null,'It can take <strong>3–5 business days</strong> to land, depending on your bank. Nothing more you need to do.',true)],
+        ctas:[], note:'Something not right? Reply and we\'ll take a look.'}},
+      partial:{label:'Partial refund', v:{band:{tone:'neutral',ey:'● Refund processed',h1:'A refund\'s on its way',lead:'Hi Jess, we\'ve refunded part of order #1042 to your original payment method.'},
+        sections:[{t:'amount',title:'Refunded',html:'$27.00 <span style="font-size:13px;font-weight:500;color:#8a7864">NZD</span>'},box('Why partial?','We refunded the High-Protein Brekky add-on. The rest of your order is unchanged and on its way.'),box(null,'It can take <strong>3–5 business days</strong> to land, depending on your bank.',true)],
+        ctas:[], note:'Something not right? Reply and we\'ll take a look.'}}
+    }
+  },
+
+  welcome:{ x:1360, y:1180, tag:'Built', title:'Account welcome', sub:'Shopify · account invite / welcome',
+    order:['welcome','invite'],
+    variants:{
+      welcome:{label:'Welcome (new account)', v:{band:{tone:'green',ey:'● Welcome',h1:'Welcome to the family, Jess! 🙌',lead:'Your account\'s all set. Here\'s what you can do with it.'},
+        sections:[{t:'bullets',items:['Track every order from the moment it\'s placed','Skip, pause or swap your weekly box anytime','Breeze through checkout next time']}],
+        ctas:[{label:'Go to my account',kind:'primary'}], note:'We\'re real people cooking in Taradale. Reply anytime.'}},
+      invite:{label:'Invite (activate)', v:{band:{tone:'green',ey:'● You\'re invited',h1:'Activate your account, Jess 🙌',lead:'We\'ve set up an account for you. Activate it to track orders and manage your box.'},
+        sections:[{t:'bullets',items:['Track every order from the moment it\'s placed','Skip, pause or swap your weekly box anytime','Breeze through checkout next time']}],
+        ctas:[{label:'Activate your account',kind:'primary'}], note:'This link is just for you and expires in a few days.'}}
+    }
+  },
+
+  shipupdate:{ x:40, y:2360, tag:'Built', title:'Shipping update', sub:'Shopify · tracking changed / delayed',
+    order:['delayed','moved'],
+    variants:{
+      delayed:{label:'Running late', v:{band:{tone:'neutral',ey:'● Delivery update',h1:'A quick heads-up, Jess',lead:'Your delivery is running a little behind. Here\'s the latest, and sorry for the wait.'},
+        sections:[box('What\'s happening','Your order is delayed by a day. The new estimate is <strong>Saturday 4 July</strong>. Everything\'s still fresh and on its way.'),kv('Still heading to',ADDR)],
+        ctas:[{label:'View your order',kind:'primary'}], note:'Need it sooner? Reply and we\'ll do our best.'}},
+      moved:{label:'Tracking updated', v:{band:{tone:'green',ey:'● Delivery update',h1:'Your delivery details changed',lead:'Just so you\'re in the loop, your tracking was updated.'},
+        sections:[box('Latest','<strong>On track for Friday 3 July.</strong> Follow along with the button below.'),kv('Heading to',ADDR)],
+        ctas:[{label:'Track your order',kind:'primary'}], note:'Questions? Just reply to this email.'}}
+    }
+  },
+
+  delivered:{ x:700, y:2360, tag:'Built', title:'Delivered', sub:'Shopify · "your order arrived"',
+    order:['std'],
+    variants:{ std:{label:'Delivered', v:{band:{tone:'green',ey:'● Delivered',h1:'It\'s landed, Jess! 🎉',lead:'Your order was just delivered. Time to dig in.'},
+      sections:[box(null,'🧊 <strong>Quick tip:</strong> pop the meals in the fridge. They heat in 3 minutes, and snacks are grab-and-go.',true)],
+      ctas:[{label:'Leave a review',kind:'primary'},{label:'Order again',kind:'secondary'}], note:'Not there yet? Reply and we\'ll chase it up.'}} }
+  },
+
+  abandoned:{ x:1360, y:2360, tag:'Built', title:'Abandoned checkout', sub:'Shopify · left something behind',
+    order:['std','offer'],
+    variants:{
+      std:{label:'Reminder', v:{band:{tone:'green',ey:'● You left something behind',h1:'Still hungry, Jess? 👀',lead:'You left some good stuff in your cart. We saved it for you, so picking up where you left off is easy.'},
+        sections:[items('In your cart',SAMPLE_ITEMS.map(function(i){return {nm:i.nm,meta:'',q:i.q};}))],
+        ctas:[{label:'Finish your order',kind:'primary'}], note:'Cart not loading? Reply and we\'ll help.'}},
+      offer:{label:'Reminder + nudge', v:{band:{tone:'green',ey:'● You left something behind',h1:'Still hungry, Jess? 👀',lead:'Your cart\'s still here, and so is your appetite. Here\'s a little nudge to finish up.'},
+        sections:[box(null,'<strong>10% off if you finish today</strong> — use code <strong>HUNGRY10</strong> at checkout.',true),items('In your cart',SAMPLE_ITEMS.map(function(i){return {nm:i.nm,meta:'',q:i.q};}))],
+        ctas:[{label:'Finish your order',kind:'primary'}], note:'Offer ends at midnight tonight.'}}
+    }
+  },
+
+  receipt:{ x:2020, y:2360, tag:'Built', title:'Order receipt', sub:'Shopify · invoice / payment receipt',
+    order:['std'],
+    variants:{ std:{label:'Receipt', v:{band:{tone:'neutral',ey:'● Receipt',h1:'Here\'s your receipt',lead:'Thanks, Jess. Here\'s a copy of order #1042 for your records.'},
+      sections:[{t:'summary'},kv('Paid with','Visa ending 4242')],
+      ctas:[{label:'View your order',kind:'primary'}], note:'Need a tax invoice? Just reply.'}} }
+  },
+
+  giftmade:{ x:40, y:3640, tag:'Built', title:'Gift card created', sub:'Shopify · the card itself, by email',
+    order:['toyou','tofriend'],
+    variants:{
+      toyou:{label:'Gift card · to you', v:{band:{tone:'green',ey:'● Your gift card',h1:'Here\'s your gift card 🎁',lead:'Ready to spend whenever you like, on anything in the kitchen.'},
+        sections:[{t:'amount',title:'Gift card',html:'$100.00 <span style="font-size:13px;font-weight:500;color:#8a7864">NZD</span>'},box('Your code','<strong style="letter-spacing:.08em">SHRD-4F2A-9KQ-7X</strong><br><span style="color:#8a7864">Enter it at checkout. No expiry.</span>')],
+        ctas:[{label:'Shop now',kind:'primary'}], note:'Keep this email safe, it\'s as good as money.'}},
+      tofriend:{label:'Gift card · to a friend', v:{band:{tone:'green',ey:'● A gift for you',h1:'You\'ve been gifted, Jess! 🎁',lead:'Someone with great taste sent you a Shredded Kitchen gift card.'},
+        sections:[box(null,'<em>"Enjoy some real food on me. Love, Mum"</em>',true),{t:'amount',title:'Your gift card',html:'$100.00 <span style="font-size:13px;font-weight:500;color:#8a7864">NZD</span>'},box('Your code','<strong style="letter-spacing:.08em">SHRD-4F2A-9KQ-7X</strong><br><span style="color:#8a7864">Enter it at checkout. No expiry.</span>')],
+        ctas:[{label:'Spend it now',kind:'primary'}], note:'First time? Reply and we\'ll point you to the good stuff.'}}
+    }
+  },
+
+  pwreset:{ x:700, y:3640, tag:'Built', title:'Password reset', sub:'Shopify · account security',
+    order:['std'],
+    variants:{ std:{label:'Reset password', v:{band:{tone:'neutral',ey:'● Account',h1:'Reset your password',lead:'Tap the button to set a new password for your account.'},
+      sections:[box(null,'Didn\'t ask for this? You can safely ignore this email, your password won\'t change.')],
+      ctas:[{label:'Reset my password',kind:'primary'}], note:'For your security, this link expires shortly.'}} }
+  },
+
+  contact:{ x:1360, y:3640, tag:'Built', title:'Contact customer', sub:'Shopify · blank branded shell',
+    order:['blank'],
+    variants:{ blank:{label:'Blank message', v:{band:{tone:'green',ey:'● A note from us',h1:'[ Your heading here ]',lead:'[ This is the blank, on-brand shell for one-off emails to a customer. Type your message and it lands looking like the rest. ]'},
+      sections:[box(null,'[ Body of your message goes here. ]')],
+      ctas:[{label:'[ Optional button ]',kind:'primary'}], note:'Reply anytime, we\'re real people in Taradale.'}} }
+  },
+
+  payreminder:{ x:2020, y:3640, tag:'Built', title:'Payment reminder', sub:'Shopify · unpaid / pending',
+    order:['std'],
+    variants:{ std:{label:'Payment pending', v:{band:{tone:'neutral',ey:'● Payment pending',h1:'Just a friendly reminder',lead:'Hi Jess, we haven\'t received payment for order #1042 yet. Finish whenever you\'re ready and we\'ll get cooking.'},
+      sections:[{t:'summary'}],
+      ctas:[{label:'Complete payment',kind:'primary'}], note:'Already paid? Ignore this, or reply if something looks off.'}} }
+  },
+
+  /* ================= RECHARGE — subscription emails ================= */
+  rc_conf:{ x:40, y:4980, tag:'Recharge', tagCls:'rc', title:'Subscription activated', sub:'Recharge · when a subscription starts',
+    order:['std'],
+    variants:{ std:{label:'Confirmed', v:{band:{tone:'green',ey:'● Subscription active',h1:'You\'re all set, Jess! 🎉',lead:'Welcome to your weekly box. Here\'s how it works, and you\'re always in control.'},
+      strip:['Made fresh in Taradale','Free local delivery','Skip or cancel anytime'],
+      sections:[items('Your subscription',[{nm:'Weekly Box, Performance',meta:'Renews weekly · next charge 4 Jul',q:'$119.00'}]),{t:'summary'},{t:'sub'}],
+      ctas:[{label:'Manage my subscription',kind:'primary'}], note:'Questions? Email hello@theshreddedkitchen.nz, we\'re real people in Taradale.'}} }
+  },
+
+  rc_upcoming:{ x:700, y:4980, tag:'Recharge', tagCls:'rc', title:'Upcoming charge', sub:'Recharge · renewal reminder · top churn-saver',
+    order:['std','priceup','oos'],
+    variants:{
+      std:{label:'Standard reminder', v:{band:{tone:'green',ey:'● Renewal coming up',h1:'Your next box renews soon, Jess',lead:'Quick heads-up: your weekly meal prep renews on Wednesday 2 July. Make sure your funds are ready so we can keep you on track.'},
+        strip:['Renews automatically','Skip anytime','Cancel anytime'],
+        sections:[box('Charging on','<strong>Wednesday 2 July</strong> · $146.00 NZD'),items('Your upcoming box',[{nm:'Weekly Box, Performance',meta:'',q:'$119.00'},{nm:'High-Protein Brekky × 3',meta:'',q:'$27.00'}]),{t:'sub'}],
+        ctas:[{label:'Skip, change or pause',kind:'primary'}], note:'Not hungry this week? Skip before Tuesday midnight and you won\'t be charged.'}},
+      priceup:{label:'With price change', v:{band:{tone:'green',ey:'● Renewal coming up',h1:'Your next box renews soon, Jess',lead:'Quick heads-up: your weekly meal prep renews on Wednesday 2 July.'},
+        strip:['Renews automatically','Skip anytime','Cancel anytime'],
+        sections:[box('Heads up: price change','Your Weekly Box changes from <strong>$115.00</strong> to <strong>$119.00</strong> on this renewal.'),box('Charging on','<strong>Wednesday 2 July</strong> · $146.00 NZD'),items('Your upcoming box',[{nm:'Weekly Box, Performance',meta:'',q:'$119.00'}]),{t:'sub'}],
+        ctas:[{label:'Skip, change or pause',kind:'primary'}], note:'Not hungry this week? Skip before Tuesday midnight.'}},
+      oos:{label:'With stock warning', v:{band:{tone:'green',ey:'● Renewal coming up',h1:'Your next box renews soon, Jess',lead:'Quick heads-up: your weekly meal prep renews on Wednesday 2 July.'},
+        strip:['Renews automatically','Skip anytime','Cancel anytime'],
+        sections:[box('Charging on','<strong>Wednesday 2 July</strong> · $146.00 NZD'),items('Your upcoming box',[{nm:'Weekly Box, Performance',meta:'',q:'$119.00'}]),box(null,'If anything in your box is out of stock, we\'ll hold the order and try again rather than send you short.'),{t:'sub'}],
+        ctas:[{label:'Skip, change or pause',kind:'primary'}], note:'Not hungry this week? Skip before Tuesday midnight.'}}
+    }
+  },
+
+  rc_recurring:{ x:1360, y:4980, tag:'Recharge', tagCls:'rc', title:'Recurring order', sub:'Recharge · fires each weekly charge',
+    order:['std','oos'],
+    variants:{
+      std:{label:'Order confirmed', v:{band:{tone:'green',ey:'● Your box is booked',h1:'Another week sorted, Jess! 🍽️',lead:'Thanks for another week with us. We\'re prepping your meals now and we\'ll let you know when they\'re on the way.'},
+        strip:['Made fresh in Taradale','Free local delivery','Skip or cancel anytime'],
+        sections:[items('This week\'s box',[{nm:'Weekly Box, Performance',meta:'',q:'$119.00'}]),{t:'summary'}],
+        ctas:[{label:'Manage my subscription',kind:'primary'}], note:'Questions about your order? Email hello@theshreddedkitchen.nz.'}},
+      oos:{label:'With out-of-stock items', v:{band:{tone:'green',ey:'● Your box is booked',h1:'Another week sorted, Jess! 🍽️',lead:'Thanks for another week with us. We\'re prepping your meals now.'},
+        sections:[box(null,'A couple of items were out of stock this week, so we left them off and didn\'t charge you for them:<br>• Marry Me Chicken × 1'),items('This week\'s box',[{nm:'Weekly Box, Performance',meta:'',q:'$119.00'}]),{t:'summary'}],
+        ctas:[{label:'Manage my subscription',kind:'primary'}], note:'Questions? Email hello@theshreddedkitchen.nz.'}}
+    }
+  },
+
+  rc_cancelled:{ x:2020, y:4980, tag:'Recharge', tagCls:'rc', title:'Subscription cancelled', sub:'Recharge · sorry to see you go',
+    order:['std'],
+    variants:{ std:{label:'Cancelled', v:{band:{tone:'neutral',ey:'● Subscription cancelled',h1:'Sorry to see you go, Jess',lead:'Your subscription\'s been cancelled. No more charges, and no hard feelings.'},
+      sections:[box('We\'d love your feedback','As a small Taradale business, hearing what we could do better means a lot. Just hit reply.'),box('Changed your mind?','You can resubscribe anytime, your favourites are waiting.',true)],
+      ctas:[{label:'Resubscribe',kind:'primary'}], note:'Thanks for being part of it. We\'d love to welcome you back.'}} }
+  },
+
+  rc_oos:{ x:40, y:6260, tag:'Recharge', tagCls:'rc', title:'Out of stock', sub:'Recharge · item unavailable on upcoming order',
+    order:['std'],
+    variants:{ std:{label:'Stock hold', v:{band:{tone:'neutral',ey:'● Stock update',h1:'A quick heads-up, Jess',lead:'One of the items in your upcoming box is out of stock right now.'},
+      sections:[box('What\'s out','Marry Me Chicken'),box('What happens next','We\'ll hold your order and try again once it\'s back in stock. You won\'t be charged until then.',true)],
+      ctas:[{label:'Manage my subscription',kind:'primary'}], note:'Want to swap it for something else? Tap above, it takes a sec.'}} }
+  },
+
+  rc_manage:{ x:700, y:6260, tag:'Recharge', tagCls:'rc', title:'Manage / account help', sub:'Recharge · trouble accessing subscription',
+    order:['has','notenabled','noaccount'],
+    variants:{
+      has:{label:'Has account', v:{band:{tone:'neutral',ey:'● Account help',h1:'Let\'s get you in, Jess',lead:'We found an account matching your email. Log in to manage your subscription anytime.'},
+        sections:[box(null,'Tap below to log in and manage your box, skip a week, swap meals, or update your details.')],
+        ctas:[{label:'Log in to my account',kind:'primary'}], note:'Backup link expires in 12 hours for your security.'}},
+      notenabled:{label:'Account not activated', v:{band:{tone:'neutral',ey:'● Account help',h1:'One quick step, Jess',lead:'We found your account, it just needs activating. Then you can manage everything yourself.'},
+        sections:[box(null,'Tap below to activate your account and unlock subscription management.')],
+        ctas:[{label:'Activate my account',kind:'primary'}], note:'Backup link expires in 12 hours for your security.'}},
+      noaccount:{label:'No account yet', v:{band:{tone:'neutral',ey:'● Account help',h1:'Let\'s set you up, Jess',lead:'To manage your subscription, create an account using the same email you ordered with.'},
+        sections:[box(null,'Tap below to create your account and take control of your box.')],
+        ctas:[{label:'Create my account',kind:'primary'}], note:'Backup link expires in 12 hours for your security.'}}
+    }
+  },
+
+  rc_login:{ x:1360, y:6260, tag:'Recharge', tagCls:'rc', title:'One-time login', sub:'Recharge · magic login link',
+    order:['std'],
+    variants:{ std:{label:'Login link', v:{band:{tone:'green',ey:'● Secure login',h1:'Here\'s your login link',lead:'Tap below to log in and manage your subscription. No password needed.'},
+      sections:[box(null,'Didn\'t request this? You can safely ignore it, nothing will change.')],
+      ctas:[{label:'Log in',kind:'primary'}], note:'This link is just for you and expires shortly.'}} }
+  }
+};
+
+/* ================= stubs (to build into THIS board) ================= */
+var STUBS = [];
+
+/* ================= renderer ================= */
+function renderSection(s){
+  if(s.t==='steps'){
+    var r='<div class="em-sec"><div class="em-ttl">'+s.title+'</div><div class="em-box"><div style="padding:2px 0">';
+    s.items.forEach(function(it,i){ r+='<div class="em-step"><div class="n">'+(i+1)+'</div><div class="t"><strong>'+it[0]+'</strong> '+it[1]+'</div></div>'; });
+    return r+'</div></div></div>';
+  }
+  if(s.t==='box'){ return '<div class="em-sec">'+(s.title?'<div class="em-ttl">'+s.title+'</div>':'')+'<div class="em-box'+(s.green?' green':'')+'">'+s.html+'</div></div>'; }
+  if(s.t==='amount'){ return '<div class="em-sec"><div class="em-ttl">'+s.title+'</div><div class="em-box big">'+s.html+'</div></div>'; }
+  if(s.t==='kv'){ return '<div class="em-sec"><div class="em-ttl">'+s.title+'</div><div class="em-box">'+s.html+'</div></div>'; }
+  if(s.t==='items'){
+    var x='<div class="em-sec"><div class="em-ttl">'+s.title+'</div><div class="em-box">';
+    s.rows.forEach(function(it){ x+='<div class="em-row"><div class="em-th"></div><div class="nm">'+it.nm+(it.meta?'<br><span style="font-size:12px;color:#8AA22E;font-weight:600">'+it.meta+'</span>':'')+'</div>'+(it.q?'<div class="pr">'+it.q+'</div>':'')+'</div>'; });
+    return x+'</div></div>';
+  }
+  if(s.t==='bullets'){
+    var b='<div class="em-sec"><div class="em-box">';
+    s.items.forEach(function(it){ b+='<div class="em-row"><div style="flex:none;width:27px;height:27px;border-radius:50%;background:#A8C13C;color:#2B1F12;font-weight:700;text-align:center;line-height:27px">✓</div><div class="nm" style="font-weight:500">'+it+'</div></div>'; });
+    return b+'</div></div>';
+  }
+  if(s.t==='summary'){
+    var su='<div class="em-sec"><div class="em-ttl">Order summary</div><div class="em-box" style="background:#fff;padding:0;margin-top:11px">';
+    SAMPLE_ITEMS.forEach(function(it){ su+='<div class="em-row"><div class="em-th"></div><div class="nm">'+it.nm+(it.meta?'<br><span style="font-size:12px;color:#8AA22E;font-weight:600">'+it.meta+'</span>':'')+'</div><div class="pr">'+it.q+'</div></div>'; });
+    su+='</div></div>';
+    su+='<div class="em-sec"><div class="em-box" style="background:#fff;padding:0">'
+      +'<div class="em-tot"><span class="l">Subtotal</span><span>$146.00</span></div>'
+      +'<div class="em-tot"><span class="l">Delivery</span><span>Free</span></div>'
+      +'<div class="em-tot"><span class="l">Taxes</span><span>$19.04</span></div>'
+      +'<div class="em-tot big"><span class="l">Total</span><span>$146.00 NZD</span></div></div></div>';
+    return su;
+  }
+  if(s.t==='sub'){ return '<div class="em-sec"><div class="em-box green"><div style="font-size:16px;font-weight:700">You\'re in control 🙌</div><div style="font-size:14px;line-height:1.55;color:#5b4a35;padding-top:7px">Your box renews each week and bills automatically. Skip, swap or pause anytime before <strong style="color:#2B1F12">Tuesday midnight</strong>. No lock-in, cancel whenever.</div></div></div>'; }
+  if(s.t==='qa'){ return '<div class="em-div"></div><div class="em-qa"><div class="qh">Questions? We\'re here.</div><div class="qp">We\'re real people cooking in Taradale, not a faceless app. Reply anytime and we\'ll usually get back to you the same day.</div></div>'; }
+  return '';
+}
+function renderEmail(v){
+  var bandBg = v.band.tone==='neutral' ? 'background:#E6E0D0;color:#2B1F12' : 'background:#A8C13C;color:#2B1F12';
+  var eyCol = v.band.tone==='neutral' ? 'color:#8a7864' : '';
+  var h = '<div class="em"><div class="em-logo"><img src="'+LOGO+'" alt="The Shredded Kitchen"></div><div class="em-card">';
+  h += '<div class="em-band" style="'+bandBg+'"><div class="em-ey" style="'+eyCol+'">'+v.band.ey+'</div><div class="em-h1">'+v.band.h1+'</div><div class="em-lead">'+v.band.lead+'</div></div>';
+  if(v.strip){ h+='<div class="em-strip">'+v.strip.map(function(c){return '<span>✓ '+c+'</span>';}).join('')+'</div>'; }
+  (v.sections||[]).forEach(function(s){ h+=renderSection(s); });
+  if(v.ctas && v.ctas.length){ h+='<div class="em-cta">'+v.ctas.map(function(c){return '<a href="#" class="'+(c.kind==='secondary'?'btn2':'btn')+'">'+c.label+'</a>';}).join('<br>')+'</div>'; }
+  if(v.note){ h+='<div class="em-note">'+v.note+'</div>'; }
+  h += '</div>'+FOOT+'</div>';
+  return h;
+}
+
+/* ================= build the review list ================= */
+var WEBHOOK = 'https://n8n.srv1085988.hstgr.cloud/webhook/sk-email-review';
+var list = document.getElementById('list');
+var decisions = {};
+var TOTAL = Object.keys(EMAILS).length;
+function platformOf(cfg){ return cfg.tag==='Recharge' ? 'Recharge' : 'Shopify'; }
+
+function makeReviewCard(id, cfg){
+  var card=document.createElement('div'); card.className='rcard'; card.id='card-'+id;
+  var head=document.createElement('div'); head.className='st-head';
+  var hasVar = cfg.order.length>1;
+  var opts = cfg.order.map(function(k){return '<option value="'+k+'">'+cfg.variants[k].label+'</option>';}).join('');
+  head.innerHTML='<span class="tag '+(cfg.tagCls||'')+'">'+cfg.tag+'</span><span class="nm">'+cfg.title+'</span>'+(hasVar?'<select>'+opts+'</select>':'')+'<span class="sb">'+cfg.sub+'</span>';
+  var body=document.createElement('div'); body.className='st-body';
+  var curKey = cfg.order[0];
+  body.innerHTML=renderEmail(cfg.variants[curKey].v);
+  var ctr=document.createElement('div'); ctr.className='rc-ctr';
+  ctr.innerHTML='<div class="rc-btns"><button type="button" class="rc-ok">✅ Looks good</button><button type="button" class="rc-ch">✏️ Needs a change</button></div><textarea class="rc-note" placeholder="Optional note — what should change?"></textarea>';
+  var sel=head.querySelector('select');
+  var okB=ctr.querySelector('.rc-ok'), chB=ctr.querySelector('.rc-ch'), note=ctr.querySelector('.rc-note');
+  if(sel){ sel.addEventListener('change',function(){ curKey=sel.value; body.innerHTML=renderEmail(cfg.variants[curKey].v); if(decisions[id]) decisions[id].variant=cfg.variants[curKey].label; }); }
+  function setDec(d){
+    decisions[id]={decision:d, note:note.value, title:cfg.title, platform:platformOf(cfg), variant:cfg.variants[curKey].label, sub:cfg.sub};
+    card.classList.toggle('is-ok', d==='approved'); card.classList.toggle('is-ch', d==='change');
+    okB.classList.toggle('on', d==='approved'); chB.classList.toggle('on', d==='change');
+    note.classList.toggle('show', d==='change'); updateProgress();
+  }
+  okB.onclick=function(){ setDec('approved'); };
+  chB.onclick=function(){ setDec('change'); note.focus(); };
+  note.addEventListener('input',function(){ if(decisions[id]) decisions[id].note=note.value; });
+  card.appendChild(head); card.appendChild(body); card.appendChild(ctr);
+  return card;
+}
+function groupHead(t){ var d=document.createElement('div'); d.className='group-head'; d.textContent=t; return d; }
+
+list.appendChild(groupHead('Shopify — customer notifications'));
+Object.keys(EMAILS).forEach(function(k){ if(platformOf(EMAILS[k])==='Shopify') list.appendChild(makeReviewCard(k,EMAILS[k])); });
+list.appendChild(groupHead('⚡ Recharge — subscription emails'));
+Object.keys(EMAILS).forEach(function(k){ if(platformOf(EMAILS[k])==='Recharge') list.appendChild(makeReviewCard(k,EMAILS[k])); });
+
+/* ================= reviewer + submit ================= */
+var reviewer=null;
+Array.prototype.forEach.call(document.querySelectorAll('.who-btn'),function(b){
+  b.onclick=function(){ reviewer=b.getAttribute('data-who'); Array.prototype.forEach.call(document.querySelectorAll('.who-btn'),function(x){x.classList.remove('on');}); b.classList.add('on'); updateProgress(); };
+});
+function updateProgress(){
+  var n=Object.keys(decisions).length;
+  document.getElementById('prog').textContent = n+' of '+TOTAL+' reviewed'+(reviewer?' · '+reviewer:'');
+  document.getElementById('submitBtn').disabled = !(reviewer && n>0);
+}
+updateProgress();
+
+document.getElementById('submitBtn').onclick=function(){
+  if(!reviewer){ alert('First tap who\'s reviewing (top of the page).'); return; }
+  var arr=Object.keys(decisions).map(function(id){ var d=decisions[id]; return {id:id,title:d.title,platform:d.platform,variant:d.variant,decision:d.decision,note:d.note||''}; });
+  var payload={ reviewer:reviewer, submittedAt:new Date().toString(), total:TOTAL,
+    approved:arr.filter(function(x){return x.decision==='approved';}).length,
+    changes:arr.filter(function(x){return x.decision==='change';}).length,
+    decisions:arr };
+  var btn=document.getElementById('submitBtn'); btn.disabled=true; btn.textContent='Sending…';
+  fetch(WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)})
+    .then(function(){ showDone(payload); })
+    .catch(function(){ btn.disabled=false; btn.textContent='Submit review'; alert('Could not send — check your connection and try again.'); });
+};
+function showDone(p){
+  document.getElementById('doneMsg').innerHTML='Thanks, '+p.reviewer+' — your review\'s been sent to Jusy.<br><strong>'+p.approved+'</strong> approved · <strong>'+p.changes+'</strong> change'+(p.changes===1?'':'s')+' requested.';
+  document.getElementById('done').classList.add('show');
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
