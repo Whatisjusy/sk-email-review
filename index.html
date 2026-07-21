@@ -150,6 +150,39 @@ function oc(o){
 var STEP_MEAL = steps('What happens next',[['We cook fresh.','Made to order in our Taradale kitchen.'],['We deliver.','Chilled to your door, with a heads-up when it\'s on the way.'],['Heat & eat.','3 minutes in the microwave and you\'re done.']]);
 var STEP_FOOD = steps('What happens next',[['We make it fresh.','Baked and packed in our Taradale kitchen.'],['We deliver.','To your door, with a heads-up when it\'s on the way.'],['Ready when you are.','No cooking needed, just grab one and enjoy.']]);
 
+/* ---- FPR bodies (exact copy that is loaded in Recharge, shown with "Jess" as the sample name) ---- */
+function fprWrap(inner){ return '<div style="font-size:14.5px;line-height:1.62;color:#5b4a35">'+inner+'</div>'; }
+var FPR_BTN = '<p style="text-align:center;margin:24px 0"><a href="#" class="btn">Update my card</a></p>';
+var FPR_HI = '<p style="font-size:18px;font-weight:700;color:#2B1F12;margin-top:0">Hi Jess,</p>';
+var FPR_SIGN = '<p style="font-weight:700;color:#2B1F12">Hayley and the team at The Shredded Kitchen</p>';
+function fprBody1(){ return fprWrap(FPR_HI
+  +'<p>Your latest payment for The Shredded Kitchen did not go through. This happens all the time, usually an expired card or a daily limit, and it is easy to fix.</p>'
+  +'<p>Tap the button below to update your card. It takes about a minute and your meals carry on as normal. We will automatically retry your payment in 24 hours.</p>'
+  +FPR_BTN
+  +'<p>If anything is confusing, just reply to this email and we will sort it out with you.</p>'+FPR_SIGN); }
+function fprBody2(){ return fprWrap(FPR_HI
+  +'<p>We tried your card again and it still is not going through. No stress, these things happen.</p>'
+  +'<p>Updating takes about a minute and keeps your weekly meals rolling without interruption.</p>'
+  +FPR_BTN
+  +'<p>If money is tight this week, you can also pause your subscription instead. Just reply to this email and we will set it up, no questions asked.</p>'+FPR_SIGN); }
+function fprBody3(){ return fprWrap(FPR_HI
+  +'<p>We have tried your card a few times now without luck. Your weekly meals are still set up and ready to keep coming, they are just waiting on a working card.</p>'
+  +'<p>Update before Tuesday midnight and the coming week carries on as normal.</p>'
+  +FPR_BTN
+  +'<p>Rather take a break for a bit? Reply to this email and we will pause your plan instead, no questions asked.</p>'+FPR_SIGN); }
+function fprBody4(){ return fprWrap(FPR_HI
+  +'<p>We are running out of automatic retries on your card. If it is not updated soon, your subscription will be cancelled automatically and your weekly meals will stop.</p>'
+  +'<p>It still only takes a minute to fix.</p>'
+  +FPR_BTN
+  +'<p>Not ready to decide? Reply to this email and we will pause your plan while you sort things out.</p>'+FPR_SIGN); }
+function fprBody5(){ return fprWrap(FPR_HI
+  +'<p>This is our final automatic attempt. If your card is not updated now, your subscription will be cancelled and your weekly meals will stop.</p>'
+  +'<p style="background:#F6F4EF;border-radius:13px;padding:15px 17px;color:#2B1F12">You will lose $25.00 in store credits if your subscriptions are cancelled.</p>'
+  +'<p style="font-size:12px;color:#8a7864;margin-top:-8px">(That line only shows for customers who actually have store credit, with their real amount.)</p>'
+  +'<p>Updating your card takes about a minute.</p>'
+  +FPR_BTN
+  +'<p>If you would rather pause your plan instead, reply to this email and we will set that up.</p>'+FPR_SIGN); }
+
 /* ================= ALL EMAILS ================= */
 var EMAILS = {
   conf: { x:40, y:40, tag:'Built', title:'Order confirmation', sub:'Shopify · fires on every order',
@@ -363,6 +396,40 @@ var EMAILS = {
     variants:{ std:{label:'Login link', v:{band:{tone:'green',ey:'● Secure login',h1:'Here\'s your login link',lead:'Tap below to log in and manage your subscription. No password needed.'},
       sections:[box(null,'Didn\'t request this? You can safely ignore it, nothing will change.')],
       ctas:[{label:'Log in',kind:'primary'}], note:'This link is just for you and expires shortly.'}} }
+  },
+
+  /* ================= RECHARGE — failed payment recovery (dunning) ================= */
+  fpr1:{ x:2020, y:6260, tag:'Recharge', tagCls:'rc', title:'Payment failed · Email 1', sub:'Recharge dunning · sent on the 3rd failed attempt · same email, two subject lines (half of customers get A, half get B, so we can see which works better)',
+    order:['a','b'],
+    variants:{
+      a:{label:'Subject A — warm', v:{subject:'Quick fix needed so your meals keep coming', raw:fprBody1()}},
+      b:{label:'Subject B — direct', v:{subject:'Your card did not go through, a quick update keeps your meals coming', raw:fprBody1()}}
+    }
+  },
+  fpr2:{ x:2020, y:6900, tag:'Recharge', tagCls:'rc', title:'Payment failed · Email 2', sub:'Recharge dunning · sent on the 5th failed attempt · same email, two subject lines',
+    order:['a','b'],
+    variants:{
+      a:{label:'Subject A — warm', v:{subject:'Still no luck with your card, here is the easy fix', raw:fprBody2()}},
+      b:{label:'Subject B — direct', v:{subject:'Your card was declined again, it takes a minute to fix', raw:fprBody2()}}
+    }
+  },
+  fpr3:{ x:2020, y:7540, tag:'Recharge', tagCls:'rc', title:'Payment failed · Email 3', sub:'Recharge dunning · sent on the 7th failed attempt · same email, two subject lines',
+    order:['a','b'],
+    variants:{
+      a:{label:'Subject A — warm', v:{subject:'Your meals are waiting on a card update', raw:fprBody3()}},
+      b:{label:'Subject B — direct', v:{subject:'Action needed, update your card to keep your meals coming', raw:fprBody3()}}
+    }
+  },
+  fpr4:{ x:2680, y:6260, tag:'Recharge', tagCls:'rc', title:'Payment failed · Email 4', sub:'Recharge dunning · sent on the 9th failed attempt · same email, two subject lines',
+    order:['a','b'],
+    variants:{
+      a:{label:'Subject A — warm', v:{subject:'Heads up, your subscription is at risk of being cancelled', raw:fprBody4()}},
+      b:{label:'Subject B — direct', v:{subject:'Update your card now or your subscription will be cancelled', raw:fprBody4()}}
+    }
+  },
+  fpr5:{ x:2680, y:6900, tag:'Recharge', tagCls:'rc', title:'Payment failed · Email 5 (final notice)', sub:'Recharge dunning · sent on the 10th failed attempt · the last email before the subscription is cancelled automatically',
+    order:['std'],
+    variants:{ std:{label:'Final notice', v:{subject:'Last try before your subscription is cancelled', raw:fprBody5()}} }
   }
 };
 
@@ -405,6 +472,15 @@ function renderSection(s){
   return '';
 }
 function renderEmail(v){
+  if(v.raw){
+    return '<div class="em">'
+      +'<div style="width:540px;max-width:92%;margin:0 auto 12px;background:#fff;border:1px dashed rgba(43,31,18,.3);border-radius:12px;padding:12px 16px">'
+      +'<span style="font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8AA22E">Subject line</span>'
+      +'<div style="font-size:15px;font-weight:700;padding-top:3px">'+v.subject+'</div></div>'
+      +'<div class="em-logo"><img src="'+LOGO+'" alt="The Shredded Kitchen"></div>'
+      +'<div class="em-card"><div style="padding:26px 32px 22px">'+v.raw+'</div></div>'
+      +FOOT+'</div>';
+  }
   var bandBg = v.band.tone==='neutral' ? 'background:#E6E0D0;color:#2B1F12' : 'background:#A8C13C;color:#2B1F12';
   var eyCol = v.band.tone==='neutral' ? 'color:#8a7864' : '';
   var h = '<div class="em"><div class="em-logo"><img src="'+LOGO+'" alt="The Shredded Kitchen"></div><div class="em-card">';
@@ -455,10 +531,12 @@ function makeReviewCard(id, cfg){
 }
 function groupHead(t){ var d=document.createElement('div'); d.className='group-head'; d.textContent=t; return d; }
 
+list.appendChild(groupHead('💳 NEW — failed payment emails (please review these first)'));
+Object.keys(EMAILS).forEach(function(k){ if(k.indexOf('fpr')===0) list.appendChild(makeReviewCard(k,EMAILS[k])); });
 list.appendChild(groupHead('Shopify — customer notifications'));
 Object.keys(EMAILS).forEach(function(k){ if(platformOf(EMAILS[k])==='Shopify') list.appendChild(makeReviewCard(k,EMAILS[k])); });
 list.appendChild(groupHead('⚡ Recharge — subscription emails'));
-Object.keys(EMAILS).forEach(function(k){ if(platformOf(EMAILS[k])==='Recharge') list.appendChild(makeReviewCard(k,EMAILS[k])); });
+Object.keys(EMAILS).forEach(function(k){ if(platformOf(EMAILS[k])==='Recharge' && k.indexOf('fpr')!==0) list.appendChild(makeReviewCard(k,EMAILS[k])); });
 
 /* ================= reviewer + submit ================= */
 var reviewer=null;
